@@ -1,0 +1,112 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csye7125-webapp-deployment
+  namespace: todo-webapp
+spec:
+  replicas: 3
+  progressDeadlineSeconds: 300
+  minReadySeconds: 30
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: csye7125-webapp-deployment
+  template:
+    metadata:
+      labels:
+        app: csye7125-webapp-deployment
+    spec:
+      imagePullSecrets:
+      - name: docker-hub-secret
+      initContainers:
+      - name: flyway
+        image: flyway/flyway:latest-alpine
+        args:
+          - info
+          - baseline
+          - repair
+          - migrate
+          - info
+        env:
+          - name: FLYWAY_URL
+            valueFrom:
+              configMapKeyRef:
+                name: webapp-cm
+                key: DB_URL
+          - name: FLYWAY_USER
+            valueFrom:
+              configMapKeyRef:
+                name: webapp-cm
+                key: DB_USER
+          - name: FLYWAY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: post-secret
+                key: DB_PASSWORD
+        volumeMounts:
+          - mountPath: /flyway/sql
+            name: sql
+      volumes:
+        - name: sql
+          configMap:
+            name: postgres-configmap
+      containers:
+      - image: csye7125group04/group04:webapp
+        name: todo-webapp
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /todoService/v1
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /todoService/v1
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: webapp-cm
+              key: DB_HOST
+        - name: DB_URL
+          valueFrom:
+            configMapKeyRef:
+              name: webapp-cm
+              key: DB_URL
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: webapp-cm
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: webapp-cm
+              key: DB_NAME
+        - name: DB_SCHEMA_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: webapp-cm
+              key: DB_SCHEMA_NAME
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: webapp-cm
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: post-secret
+              key: DB_PASSWORD

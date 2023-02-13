@@ -1,0 +1,82 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: todo-webapp
+  labels:
+    pod: todo-webapp
+  annotations:
+    pod: todo-webapp
+spec:
+  imagePullSecrets:
+  - name: docker-hub-araikesh
+  initContainers:
+  - name: db-migration
+    image: csye7125group04/group04:v1.2
+    env:
+    - name: URL
+      valueFrom:
+        configMapKeyRef:
+          name: webapp-cm
+          key: DB_URL
+    - name: USERNAME
+      valueFrom:
+        configMapKeyRef:
+          name: webapp-cm
+          key: DB_USER
+    - name: PASSWORD
+      valueFrom:
+        configMapKeyRef:
+          name: webapp-cm
+          key: DB_PASSWORD
+    volumeMounts:
+         - mountPath: "liquibase/changelog"
+           name: changelog
+  volumes:
+      - name: changelog
+        configMap:
+          name: samplechangelog.sql  
+  containers:
+  - name: todo-webapp
+    image: csye7125group04/group04:webapp-avinash
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+    readinessProbe:
+      httpGet:
+        path: /v1/
+        port: 8080
+      initialDelaySeconds: 60
+      periodSeconds: 10
+    livenessProbe:
+      httpGet:
+        path: /v1/
+        port: 8080
+      initialDelaySeconds: 60
+      periodSeconds: 30
+    env:
+    - name: DB_HOST
+      valueFrom:
+        configMapKeyRef:
+          name: webapp-cm
+          key: DB_HOST
+    - name: DB_PORT
+      valueFrom:
+        configMapKeyRef:
+          name: webapp-cm
+          key: DB_PORT
+    - name: DB_NAME
+      valueFrom:
+        configMapKeyRef:
+          name: webapp-cm
+          key: DB_NAME
+    - name: DB_USER
+      valueFrom:
+        configMapKeyRef:
+          name: webapp-cm
+          key: DB_USER
+    - name: DB_PASSWORD
+      valueFrom:
+        configMapKeyRef:
+          name: webapp-cm
+          key: DB_PASSWORD
